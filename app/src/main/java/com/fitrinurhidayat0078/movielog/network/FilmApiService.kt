@@ -7,6 +7,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
@@ -24,7 +25,8 @@ private val retrofit = Retrofit.Builder()
 interface FilmApiService {
     @GET("products/")
     suspend fun getFilm(
-        @Query("title") title: String
+        @Query("title") title: String,
+        @Header("User-Email") userEmail: String
     ): String
 
     @Multipart

@@ -45,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -226,7 +227,8 @@ fun MainScreen(navController: NavHostController) {
             showList = showList,
             modifier = Modifier.padding(innerPadding),
             navController = navController,
-            viewModel = viewModel
+            viewModel = viewModel,
+            userEmail = user.email
         )
     }
     if (showProfileDialog) {
@@ -314,8 +316,12 @@ fun ScreenContent(
     showList: Boolean,
     modifier: Modifier = Modifier,
     navController: NavHostController,
-    viewModel: MainViewModel
+    viewModel: MainViewModel,
+    userEmail: String
 ) {
+    LaunchedEffect(userEmail) {
+        viewModel.retrieveData(userEmail)
+    }
     val data by viewModel.data.collectAsState()
     val status by viewModel.status.collectAsState()
 
@@ -324,7 +330,9 @@ fun ScreenContent(
     } else if (status == ApiStatus.FAILED) {
         ErrorScreen(
             modifier = modifier,
-            onRetry = { viewModel.retrieveData() }
+            onRetry = {
+                viewModel.retrieveData(userEmail)
+            }
         )
     } else if (data.isEmpty()) {
         Column(

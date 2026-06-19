@@ -56,19 +56,27 @@ class MainViewModel(
     var status = MutableStateFlow(ApiStatus.LOADING)
         private set
 
-    init {
-        retrieveData()
-    }
-
-    fun retrieveData() {
+    fun retrieveData(userEmail: String) {
         viewModelScope.launch(Dispatchers.IO) {
             status.value = ApiStatus.LOADING
             try {
-                val json = FilmApi.service.getFilm(MOVIE_PREFIX)
+                val json = FilmApi.service.getFilm(
+                    title = MOVIE_PREFIX,
+                    userEmail = userEmail
+                )
+
                 val response = jsonAdapter.fromJson(json)
 
                 if (response != null) {
-                    val filmList = response.map { it.toFilm() }
+                    val filmList = response
+                        .filter { product ->
+                            val ownerEmail = getOwnerEmail(product.description.orEmpty())
+
+                            ownerEmail.isBlank() || ownerEmail == userEmail
+                        }
+                        .map { product ->
+                            product.toFilm()
+                        }
                     dao.deleteAll()
                     dao.insertAll(filmList)
                     status.value = ApiStatus.SUCCESS
@@ -128,7 +136,9 @@ class MainViewModel(
                 val jsonBody = createProductAdapter.toJson(productRequest)
                 val requestBody = jsonBody.toRequestBody("application/json".toMediaType())
                 FilmApi.service.addFilm(requestBody)
-                retrieveData()
+
+                retrieveData(userEmail)
+
                 withContext(Dispatchers.Main) {
                     onSuccess()
                 }
@@ -139,6 +149,16 @@ class MainViewModel(
                     onError(e.message ?: "Gagal menyimpan film.")
                 }
             }
+        }
+    }
+
+    private fun getOwnerEmail(description: String): String {
+        return if (description.contains("user_email:")) {
+            description.substringAfter("user_email:")
+                .substringBefore("\n")
+                .trim()
+        } else {
+            ""
         }
     }
 }
