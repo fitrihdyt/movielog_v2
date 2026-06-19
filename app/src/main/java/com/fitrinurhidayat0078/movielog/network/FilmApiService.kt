@@ -2,6 +2,7 @@ package com.fitrinurhidayat0078.movielog.network
 
 import com.fitrinurhidayat0078.movielog.model.Film
 import retrofit2.Retrofit
+import retrofit2.http.Query
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.http.GET
 
@@ -15,8 +16,10 @@ private val retrofit = Retrofit.Builder()
     .build()
 
 interface FilmApiService {
-    @GET("products/?title=%5BMovieLog0078%5D")
-    suspend fun getFilm(): String
+    @GET("products/")
+    suspend fun getFilm(
+        @Query("title") title: String
+    ): String
 }
 
 object FilmApi {

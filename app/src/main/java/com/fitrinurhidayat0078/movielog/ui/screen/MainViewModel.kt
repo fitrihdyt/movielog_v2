@@ -52,7 +52,7 @@ class MainViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             status.value = ApiStatus.LOADING
             try {
-                val json = FilmApi.service.getFilm()
+                val json = FilmApi.service.getFilm("[MovieLog0078]")
                 val response = jsonAdapter.fromJson(json)
 
                 if (response != null) {
