@@ -1,10 +1,16 @@
 package com.fitrinurhidayat0078.movielog.network
 
 import com.fitrinurhidayat0078.movielog.model.Film
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Retrofit
-import retrofit2.http.Query
 import retrofit2.converter.scalars.ScalarsConverterFactory
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
+import retrofit2.http.POST
+import retrofit2.http.Part
+import retrofit2.http.Query
 
 const val MOVIE_PREFIX = "[MovieLog0078]"
 
@@ -19,6 +25,17 @@ interface FilmApiService {
     @GET("products/")
     suspend fun getFilm(
         @Query("title") title: String
+    ): String
+
+    @Multipart
+    @POST("files/upload")
+    suspend fun uploadImage(
+        @Part file: MultipartBody.Part
+    ): String
+
+    @POST("products/")
+    suspend fun addFilm(
+        @Body body: RequestBody
     ): String
 }
 
@@ -67,6 +84,20 @@ data class CategoryResponse(
     val name: String?,
     val image: String?,
     val slug: String?
+)
+
+data class UploadResponse(
+    val originalname: String?,
+    val filename: String?,
+    val location: String?
+)
+
+data class CreateProductRequest(
+    val title: String,
+    val price: Int,
+    val description: String,
+    val categoryId: Int,
+    val images: List<String>
 )
 
 enum class ApiStatus {

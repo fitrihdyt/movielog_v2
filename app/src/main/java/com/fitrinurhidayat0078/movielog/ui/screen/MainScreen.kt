@@ -8,6 +8,7 @@ import android.graphics.ImageDecoder
 import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -91,6 +92,8 @@ import com.fitrinurhidayat0078.movielog.util.ViewModelFactory
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import java.io.File
+import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -100,6 +103,8 @@ fun MainScreen(navController: NavHostController) {
     val context = LocalContext.current
     val dataStore = remember { SettingsDataStore(context) }
     val userDataStore = remember { UserDataStore(context) }
+    val factory = ViewModelFactory(context)
+    val viewModel: MainViewModel = viewModel(factory = factory)
 
     val showList by dataStore.layoutFlow.collectAsState(true)
     val darkMode by dataStore.darkModeFlow.collectAsState(false)
@@ -193,8 +198,20 @@ fun MainScreen(navController: NavHostController) {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    bitmap = null
-                    showFilmDialog = true
+                    if (user.email.isEmpty()) {
+                        Toast.makeText(
+                            context,
+                            "Silakan login terlebih dahulu.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        scope.launch(Dispatchers.IO) {
+                            signIn(context, userDataStore)
+                        }
+                    } else {
+                        bitmap = null
+                        showFilmDialog = true
+                    }
                 }
             ) {
                 Icon(
@@ -208,7 +225,8 @@ fun MainScreen(navController: NavHostController) {
         ScreenContent(
             showList = showList,
             modifier = Modifier.padding(innerPadding),
-            navController = navController
+            navController = navController,
+            viewModel = viewModel
         )
     }
     if (showProfileDialog) {
@@ -225,6 +243,7 @@ fun MainScreen(navController: NavHostController) {
             }
         )
     }
+
     if (showFilmDialog) {
         FilmDialog(
             bitmap = bitmap,
@@ -255,12 +274,36 @@ fun MainScreen(navController: NavHostController) {
                 launcher.launch(options)
             },
             onSave = { selectedBitmap, judul, genre, ulasan, status ->
-                Log.d(
-                    "FILM-DIALOG",
-                    "Bitmap: ${selectedBitmap.width}x${selectedBitmap.height}, Judul: $judul, Genre: $genre, Ulasan: $ulasan, Status: $status"
+                val imageFile = bitmapToFile(
+                    context = context,
+                    bitmap = selectedBitmap
                 )
-                showFilmDialog = false
-                bitmap = null
+
+                viewModel.saveData(
+                    userEmail = user.email,
+                    imageFile = imageFile,
+                    judul = judul,
+                    genre = genre,
+                    ulasan = ulasan,
+                    statusFilm = status,
+                    onSuccess = {
+                        Toast.makeText(
+                            context,
+                            "Film berhasil disimpan.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        showFilmDialog = false
+                        bitmap = null
+                    },
+                    onError = { message ->
+                        Toast.makeText(
+                            context,
+                            message,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                )
             }
         )
     }
@@ -270,11 +313,9 @@ fun MainScreen(navController: NavHostController) {
 fun ScreenContent(
     showList: Boolean,
     modifier: Modifier = Modifier,
-    navController: NavHostController
+    navController: NavHostController,
+    viewModel: MainViewModel
 ) {
-    val context = LocalContext.current
-    val factory = ViewModelFactory(context)
-    val viewModel: MainViewModel = viewModel(factory = factory)
     val data by viewModel.data.collectAsState()
     val status by viewModel.status.collectAsState()
 
@@ -621,8 +662,29 @@ private fun getCroppedImage(
         MediaStore.Images.Media.getBitmap(resolver, uri)
     } else {
         val source = ImageDecoder.createSource(resolver, uri)
-        ImageDecoder.decodeBitmap(source)
+
+        ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+        }
     }
+}
+
+private fun bitmapToFile(
+    context: Context,
+    bitmap: Bitmap
+): File {
+    val file = File(
+        context.cacheDir,
+        "movielog_${System.currentTimeMillis()}.jpg"
+    )
+    FileOutputStream(file).use { outputStream ->
+        bitmap.compress(
+            Bitmap.CompressFormat.JPEG,
+            80,
+            outputStream
+        )
+    }
+    return file
 }
 
 @Preview(showBackground = true)
