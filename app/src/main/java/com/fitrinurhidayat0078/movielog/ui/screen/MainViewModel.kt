@@ -48,7 +48,7 @@ class MainViewModel(
         retrieveData()
     }
 
-    private fun retrieveData() {
+    fun retrieveData() {
         viewModelScope.launch(Dispatchers.IO) {
             status.value = ApiStatus.LOADING
             try {
@@ -60,9 +60,12 @@ class MainViewModel(
                     dao.deleteAll()
                     dao.insertAll(filmList)
                     status.value = ApiStatus.SUCCESS
+                } else {
+                    status.value = ApiStatus.FAILED
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Gagal mengambil data film", e)
+                status.value = ApiStatus.FAILED
             }
         }
     }

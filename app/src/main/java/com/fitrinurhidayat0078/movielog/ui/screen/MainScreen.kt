@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -158,6 +159,11 @@ fun ScreenContent(
 
     if (status == ApiStatus.LOADING) {
         LoadingScreen(modifier)
+    } else if (status == ApiStatus.FAILED) {
+        ErrorScreen(
+            modifier = modifier,
+            onRetry = { viewModel.retrieveData() }
+        )
     } else if (data.isEmpty()) {
         Column(
             modifier = modifier
@@ -211,6 +217,30 @@ fun LoadingScreen(modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator()
+    }
+}
+
+@Composable
+fun ErrorScreen(
+    modifier: Modifier = Modifier,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = stringResource(id = R.string.error))
+
+        Button(
+            onClick = onRetry,
+            modifier = Modifier.padding(top = 16.dp),
+            contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp)
+        ) {
+            Text(text = stringResource(id = R.string.try_again))
+        }
     }
 }
 

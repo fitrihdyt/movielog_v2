@@ -26,4 +26,6 @@
     <string name="tema">Tema</string>
     <string name="mode_terang">Mode Terang</string>
     <string name="mode_gelap">Mode Gelap</string>
+    <string name="error">Gagal memuat data. Koneksi error.</string>
+    <string name="try_again">Coba lagi</string>
 </resources>

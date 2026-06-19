@@ -68,5 +68,6 @@ data class CategoryResponse(
 
 enum class ApiStatus {
     LOADING,
-    SUCCESS
+    SUCCESS,
+    FAILED
 }
