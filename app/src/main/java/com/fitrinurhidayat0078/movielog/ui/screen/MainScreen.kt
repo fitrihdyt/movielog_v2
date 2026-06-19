@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
@@ -38,18 +40,23 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.core.net.toUri
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -87,6 +94,7 @@ fun MainScreen(navController: NavHostController) {
     val darkMode by dataStore.darkModeFlow.collectAsState(false)
     val user by userDataStore.userFlow.collectAsState(User())
 
+    var showProfileDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -107,7 +115,7 @@ fun MainScreen(navController: NavHostController) {
                                     signIn(context, userDataStore)
                                 }
                             } else {
-                                Log.d("SIGN-IN", "User: $user")
+                                showProfileDialog = true
                             }
                         }
                     ) {
@@ -176,6 +184,14 @@ fun MainScreen(navController: NavHostController) {
             showList = showList,
             modifier = Modifier.padding(innerPadding),
             navController = navController
+        )
+    }
+    if (showProfileDialog) {
+        ProfileDialog(
+            user = user,
+            onDismissRequest = {
+                showProfileDialog = false
+            }
         )
     }
 }
@@ -378,6 +394,70 @@ fun GridItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+    }
+}
+
+@Composable
+fun ProfileDialog(
+    user: User,
+    onDismissRequest: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismissRequest
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (user.photoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = user.photoUrl,
+                        contentDescription = stringResource(id = R.string.profil),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.account_circle_24),
+                        error = painterResource(id = R.drawable.account_circle_24),
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(CircleShape)
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(id = R.drawable.account_circle_24),
+                        contentDescription = stringResource(id = R.string.profil),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(96.dp)
+                    )
+                }
+                Text(
+                    text = user.name.ifBlank { "-" },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = user.email.ifBlank { "-" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                Button(
+                    onClick = onDismissRequest,
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text(text = stringResource(id = R.string.tutup))
+                }
+            }
         }
     }
 }
