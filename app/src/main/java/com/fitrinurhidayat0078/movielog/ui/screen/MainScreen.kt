@@ -215,6 +215,7 @@ fun ListItem(
                 model = film.poster.toUri(),
                 contentDescription = film.judul,
                 contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.loading_img),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
@@ -267,6 +268,7 @@ fun GridItem(
                     model = film.poster.toUri(),
                     contentDescription = film.judul,
                     contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.loading_img),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp)
