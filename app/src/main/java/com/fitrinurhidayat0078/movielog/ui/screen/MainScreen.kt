@@ -1,8 +1,14 @@
 package com.fitrinurhidayat0078.movielog.ui.screen
 
+import android.content.ContentResolver
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.os.Build
+import android.provider.MediaStore
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +64,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.net.toUri
+import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -67,6 +74,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
 import com.fitrinurhidayat0078.movielog.BuildConfig
 import com.fitrinurhidayat0078.movielog.R
 import com.fitrinurhidayat0078.movielog.model.Film
@@ -95,7 +106,17 @@ fun MainScreen(navController: NavHostController) {
     val user by userDataStore.userFlow.collectAsState(User())
 
     var showProfileDialog by remember { mutableStateOf(false) }
+    var bitmap: Bitmap? by remember { mutableStateOf(null) }
+
     val scope = rememberCoroutineScope()
+
+    val launcher = rememberLauncherForActivityResult(CropImageContract()) { result ->
+        bitmap = getCroppedImage(context.contentResolver, result)
+
+        if (bitmap != null) {
+            Log.d("IMAGE", "Gambar berhasil diambil dan di-crop.")
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -169,7 +190,15 @@ fun MainScreen(navController: NavHostController) {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    navController.navigate(Screen.FormBaru.route)
+                    val options = CropImageContractOptions(
+                        null,
+                        CropImageOptions(
+                            imageSourceIncludeGallery = false,
+                            imageSourceIncludeCamera = true,
+                            fixAspectRatio = true
+                        )
+                    )
+                    launcher.launch(options)
                 }
             ) {
                 Icon(
@@ -191,6 +220,12 @@ fun MainScreen(navController: NavHostController) {
             user = user,
             onDismissRequest = {
                 showProfileDialog = false
+            },
+            onLogout = {
+                showProfileDialog = false
+                scope.launch(Dispatchers.IO) {
+                    signOut(context, userDataStore)
+                }
             }
         )
     }
@@ -284,7 +319,6 @@ fun ErrorScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(text = stringResource(id = R.string.error))
-
         Button(
             onClick = onRetry,
             modifier = Modifier.padding(top = 16.dp),
@@ -401,7 +435,8 @@ fun GridItem(
 @Composable
 fun ProfileDialog(
     user: User,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    onLogout: () -> Unit
 ) {
     Dialog(
         onDismissRequest = onDismissRequest
@@ -452,8 +487,13 @@ fun ProfileDialog(
                     textAlign = TextAlign.Center
                 )
                 Button(
-                    onClick = onDismissRequest,
+                    onClick = onLogout,
                     modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text(text = stringResource(id = R.string.logout))
+                }
+                Button(
+                    onClick = onDismissRequest
                 ) {
                     Text(text = stringResource(id = R.string.tutup))
                 }
@@ -511,6 +551,42 @@ private suspend fun handleSignIn(
         }
     } else {
         Log.e("SIGN-IN", "Error: unrecognized custom credential type.")
+    }
+}
+
+private suspend fun signOut(
+    context: Context,
+    dataStore: UserDataStore
+) {
+    try {
+        val credentialManager = CredentialManager.create(context)
+        credentialManager.clearCredentialState(ClearCredentialStateRequest())
+
+        dataStore.clearData()
+
+        Log.d("SIGN-IN", "User logout")
+    } catch (e: Exception) {
+        Log.e("SIGN-IN", "Logout error: ${e.message}")
+    }
+}
+
+private fun getCroppedImage(
+    resolver: ContentResolver,
+    result: CropImageView.CropResult
+): Bitmap? {
+    if (!result.isSuccessful) {
+        Log.e("IMAGE", "Error: ${result.error}")
+        return null
+    }
+
+    val uri = result.uriContent ?: return null
+
+    return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+        @Suppress("DEPRECATION")
+        MediaStore.Images.Media.getBitmap(resolver, uri)
+    } else {
+        val source = ImageDecoder.createSource(resolver, uri)
+        ImageDecoder.decodeBitmap(source)
     }
 }
 

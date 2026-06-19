@@ -38,4 +38,10 @@ class UserDataStore(
             preferences[USER_PHOTO] = user.photoUrl
         }
     }
+
+    suspend fun clearData() {
+        context.userDataStore.edit { preferences ->
+            preferences.clear()
+        }
+    }
 }
