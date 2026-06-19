@@ -37,32 +37,43 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.graphics.createBitmap
+import coil.compose.AsyncImage
+import com.fitrinurhidayat0078.movielog.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilmDialog(
+    dialogTitle: String,
     bitmap: Bitmap?,
+    imageUrl: String,
+    initialJudul: String,
+    initialGenre: String,
+    initialUlasan: String,
+    initialStatus: String,
     onDismissRequest: () -> Unit,
     onPickImage: () -> Unit,
     onTakePhoto: () -> Unit,
     onSave: (
-        bitmap: Bitmap,
+        bitmap: Bitmap?,
         judul: String,
         genre: String,
         ulasan: String,
         status: String
     ) -> Unit
 ) {
-    var judul by remember { mutableStateOf("") }
-    var genre by remember { mutableStateOf("") }
-    var ulasan by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("Belum ditonton") }
+    var judul by remember(initialJudul) { mutableStateOf(initialJudul) }
+    var genre by remember(initialGenre) { mutableStateOf(initialGenre) }
+    var ulasan by remember(initialUlasan) { mutableStateOf(initialUlasan) }
+    var status by remember(initialStatus) {
+        mutableStateOf(initialStatus.ifBlank { "Belum ditonton" })
+    }
     var expanded by remember { mutableStateOf(false) }
 
     val statusOptions = listOf(
@@ -71,7 +82,9 @@ fun FilmDialog(
         "Sudah ditonton"
     )
 
-    val isFormValid = bitmap != null &&
+    val hasImage = bitmap != null || imageUrl.isNotBlank()
+
+    val isFormValid = hasImage &&
             judul.isNotBlank() &&
             genre.isNotBlank() &&
             ulasan.isNotBlank() &&
@@ -94,7 +107,7 @@ fun FilmDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Tambah Film",
+                    text = dialogTitle,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -103,6 +116,17 @@ fun FilmDialog(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = "Poster film",
                         contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                    )
+                } else if (imageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = "Poster film",
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.loading_img),
+                        error = painterResource(id = R.drawable.broken_img),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp)
@@ -237,15 +261,13 @@ fun FilmDialog(
                     }
                     Button(
                         onClick = {
-                            if (bitmap != null) {
-                                onSave(
-                                    bitmap,
-                                    judul.trim(),
-                                    genre.trim(),
-                                    ulasan.trim(),
-                                    status.trim()
-                                )
-                            }
+                            onSave(
+                                bitmap,
+                                judul.trim(),
+                                genre.trim(),
+                                ulasan.trim(),
+                                status.trim()
+                            )
                         },
                         enabled = isFormValid
                     ) {
@@ -265,7 +287,13 @@ fun FilmDialogPreview() {
         height = 600
     )
     FilmDialog(
+        dialogTitle = "Tambah Film",
         bitmap = bitmap,
+        imageUrl = "",
+        initialJudul = "",
+        initialGenre = "",
+        initialUlasan = "",
+        initialStatus = "Belum ditonton",
         onDismissRequest = {},
         onPickImage = {},
         onTakePhoto = {},

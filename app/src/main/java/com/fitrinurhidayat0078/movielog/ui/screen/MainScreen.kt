@@ -11,11 +11,13 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,8 +29,10 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -37,7 +41,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,10 +56,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -86,7 +92,6 @@ import com.fitrinurhidayat0078.movielog.BuildConfig
 import com.fitrinurhidayat0078.movielog.R
 import com.fitrinurhidayat0078.movielog.model.Film
 import com.fitrinurhidayat0078.movielog.model.User
-import com.fitrinurhidayat0078.movielog.navigation.Screen
 import com.fitrinurhidayat0078.movielog.network.ApiStatus
 import com.fitrinurhidayat0078.movielog.network.UserDataStore
 import com.fitrinurhidayat0078.movielog.ui.theme.MovieLogTheme
@@ -98,11 +103,26 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingExcept
 import java.io.File
 import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private val Maroon = Color(0xFF7A1F2B)
+private val DarkMaroon = Color(0xFF3B0B14)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(navController: NavHostController) {
+    var showSplash by rememberSaveable { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        delay(1800)
+        showSplash = false
+    }
+    if (showSplash) {
+        SplashScreen()
+        return
+    }
+
     val context = LocalContext.current
     val dataStore = remember { SettingsDataStore(context) }
     val userDataStore = remember { UserDataStore(context) }
@@ -111,12 +131,21 @@ fun MainScreen(navController: NavHostController) {
 
     val showList by dataStore.layoutFlow.collectAsState(true)
     val darkMode by dataStore.darkModeFlow.collectAsState(false)
-    val user by userDataStore.userFlow.collectAsState(User())
+    val userState by userDataStore.userFlow.collectAsState(initial = null)
     val ownedFilmIds by viewModel.ownedFilmIds.collectAsState()
+    val isProcessing by viewModel.isProcessing.collectAsState()
+
+    if (userState == null) {
+        SplashScreen()
+        return
+    }
+
+    val user = userState!!
 
     var showProfileDialog by remember { mutableStateOf(false) }
     var showFilmDialog by remember { mutableStateOf(false) }
     var filmToDelete by remember { mutableStateOf<Film?>(null) }
+    var filmToEdit by remember { mutableStateOf<Film?>(null) }
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     val scope = rememberCoroutineScope()
@@ -135,30 +164,17 @@ fun MainScreen(navController: NavHostController) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text(text = stringResource(id = R.string.app_name))
+                    Text(
+                        text = stringResource(id = R.string.app_name),
+                        fontWeight = FontWeight.Bold
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
+                    containerColor = Maroon,
+                    titleContentColor = Color.White,
+                    actionIconContentColor = Color.White
                 ),
                 actions = {
-                    IconButton(
-                        onClick = {
-                            if (user.email.isEmpty()) {
-                                scope.launch(Dispatchers.IO) {
-                                    signIn(context, userDataStore)
-                                }
-                            } else {
-                                showProfileDialog = true
-                            }
-                        }
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.account_circle_24),
-                            contentDescription = stringResource(id = R.string.profil),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
                     IconButton(
                         onClick = {
                             scope.launch {
@@ -175,7 +191,7 @@ fun MainScreen(navController: NavHostController) {
                                 if (showList) R.string.grid
                                 else R.string.list
                             ),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = Color.White
                         )
                     }
                     IconButton(
@@ -194,7 +210,25 @@ fun MainScreen(navController: NavHostController) {
                                 if (darkMode) R.string.mode_terang
                                 else R.string.mode_gelap
                             ),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = Color.White
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            if (user.email.isEmpty()) {
+                                scope.launch(Dispatchers.IO) {
+                                    signIn(context, userDataStore)
+                                }
+                            } else {
+                                showProfileDialog = true
+                            }
+                        }
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.account_circle_24),
+                            contentDescription = stringResource(id = R.string.profil),
+                            tint = Color.White
                         )
                     }
                 }
@@ -202,6 +236,8 @@ fun MainScreen(navController: NavHostController) {
         },
         floatingActionButton = {
             FloatingActionButton(
+                containerColor = Maroon,
+                contentColor = Color.White,
                 onClick = {
                     if (user.email.isEmpty()) {
                         Toast.makeText(
@@ -214,6 +250,7 @@ fun MainScreen(navController: NavHostController) {
                             signIn(context, userDataStore)
                         }
                     } else {
+                        filmToEdit = null
                         bitmap = null
                         showFilmDialog = true
                     }
@@ -221,8 +258,7 @@ fun MainScreen(navController: NavHostController) {
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = stringResource(R.string.tambah_film),
-                    tint = MaterialTheme.colorScheme.primary
+                    contentDescription = stringResource(R.string.tambah_film)
                 )
             }
         }
@@ -230,10 +266,19 @@ fun MainScreen(navController: NavHostController) {
         ScreenContent(
             showList = showList,
             modifier = Modifier.padding(innerPadding),
-            navController = navController,
             viewModel = viewModel,
             userEmail = user.email,
             ownedFilmIds = ownedFilmIds,
+            onLoginClick = {
+                scope.launch(Dispatchers.IO) {
+                    signIn(context, userDataStore)
+                }
+            },
+            onEditClick = { film ->
+                filmToEdit = film
+                bitmap = null
+                showFilmDialog = true
+            },
             onDeleteClick = { film ->
                 filmToDelete = film
             }
@@ -255,10 +300,19 @@ fun MainScreen(navController: NavHostController) {
     }
 
     if (showFilmDialog) {
+        val editingFilm = filmToEdit
+
         FilmDialog(
+            dialogTitle = if (editingFilm == null) "Tambah Film" else "Ubah Film",
             bitmap = bitmap,
+            imageUrl = editingFilm?.poster.orEmpty(),
+            initialJudul = editingFilm?.judul.orEmpty(),
+            initialGenre = editingFilm?.genre.orEmpty(),
+            initialUlasan = editingFilm?.ulasan.orEmpty(),
+            initialStatus = editingFilm?.status ?: "Belum ditonton",
             onDismissRequest = {
                 showFilmDialog = false
+                filmToEdit = null
                 bitmap = null
             },
             onPickImage = {
@@ -284,36 +338,82 @@ fun MainScreen(navController: NavHostController) {
                 launcher.launch(options)
             },
             onSave = { selectedBitmap, judul, genre, ulasan, status ->
-                val imageFile = bitmapToFile(
-                    context = context,
-                    bitmap = selectedBitmap
-                )
-
-                viewModel.saveData(
-                    userEmail = user.email,
-                    imageFile = imageFile,
-                    judul = judul,
-                    genre = genre,
-                    ulasan = ulasan,
-                    statusFilm = status,
-                    onSuccess = {
+                if (editingFilm == null) {
+                    if (selectedBitmap == null) {
                         Toast.makeText(
                             context,
-                            "Film berhasil disimpan.",
+                            "Pilih gambar terlebih dahulu.",
                             Toast.LENGTH_SHORT
                         ).show()
-
-                        showFilmDialog = false
-                        bitmap = null
-                    },
-                    onError = { message ->
-                        Toast.makeText(
-                            context,
-                            message,
-                            Toast.LENGTH_LONG
-                        ).show()
+                        return@FilmDialog
                     }
-                )
+
+                    val imageFile = bitmapToFile(
+                        context = context,
+                        bitmap = selectedBitmap
+                    )
+
+                    viewModel.saveData(
+                        userEmail = user.email,
+                        imageFile = imageFile,
+                        judul = judul,
+                        genre = genre,
+                        ulasan = ulasan,
+                        statusFilm = status,
+                        onSuccess = {
+                            Toast.makeText(
+                                context,
+                                "Film berhasil disimpan.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            showFilmDialog = false
+                            filmToEdit = null
+                            bitmap = null
+                        },
+                        onError = { message ->
+                            Toast.makeText(
+                                context,
+                                message,
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    )
+                } else {
+                    val imageFile = selectedBitmap?.let {
+                        bitmapToFile(
+                            context = context,
+                            bitmap = it
+                        )
+                    }
+                    viewModel.updateData(
+                        userEmail = user.email,
+                        filmId = editingFilm.id,
+                        imageFile = imageFile,
+                        currentImageUrl = editingFilm.poster,
+                        judul = judul,
+                        genre = genre,
+                        ulasan = ulasan,
+                        statusFilm = status,
+                        onSuccess = {
+                            Toast.makeText(
+                                context,
+                                "Film berhasil diubah.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            showFilmDialog = false
+                            filmToEdit = null
+                            bitmap = null
+                        },
+                        onError = { message ->
+                            Toast.makeText(
+                                context,
+                                message,
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    )
+                }
             }
         )
     }
@@ -350,18 +450,102 @@ fun MainScreen(navController: NavHostController) {
             }
         )
     }
+
+    if (isProcessing) {
+        ProcessingDialog()
+    }
+}
+
+@Composable
+fun SplashScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        DarkMaroon,
+                        Maroon
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(22.dp)
+        ) {
+            Card(
+                modifier = Modifier.size(120.dp),
+                shape = RoundedCornerShape(32.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White.copy(alpha = 0.16f)
+                ),
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.35f)
+                )
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "ML",
+                        color = Color.White,
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            Text(
+                text = "MovieLog",
+                color = Color.White,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "Catat, kelola, dan ulas film favoritmu.",
+                color = Color.White.copy(alpha = 0.86f),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+            CircularProgressIndicator(
+                color = Color.White,
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(34.dp)
+            )
+            Text(
+                text = "Memuat aplikasi...",
+                color = Color.White.copy(alpha = 0.78f),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
 }
 
 @Composable
 fun ScreenContent(
     showList: Boolean,
     modifier: Modifier = Modifier,
-    navController: NavHostController,
     viewModel: MainViewModel,
     userEmail: String,
     ownedFilmIds: Set<Long>,
+    onLoginClick: () -> Unit,
+    onEditClick: (Film) -> Unit,
     onDeleteClick: (Film) -> Unit
 ) {
+    if (userEmail.isBlank()) {
+        LoginRequiredScreen(
+            modifier = modifier,
+            onLoginClick = onLoginClick
+        )
+        return
+    }
     LaunchedEffect(userEmail) {
         viewModel.retrieveData(userEmail)
     }
@@ -378,46 +562,43 @@ fun ScreenContent(
             }
         )
     } else if (data.isEmpty()) {
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(text = stringResource(id = R.string.list_kosong))
-        }
+        EmptyFilmScreen(modifier)
     } else {
         if (showList) {
             LazyColumn(
-                modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 84.dp)
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(
+                    top = 16.dp,
+                    bottom = 96.dp
+                )
             ) {
                 items(data) {
                     ListItem(
                         film = it,
                         canDelete = ownedFilmIds.contains(it.id),
                         onClick = {
-                            navController.navigate(Screen.FormUbah.withId(it.id))
+                            onEditClick(it)
                         },
                         onDeleteClick = {
                             onDeleteClick(it)
                         }
                     )
-                    HorizontalDivider()
                 }
             }
         } else {
             LazyVerticalStaggeredGrid(
-                modifier = modifier.fillMaxSize(),
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp),
                 columns = StaggeredGridCells.Fixed(2),
-                verticalItemSpacing = 8.dp,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalItemSpacing = 12.dp,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(
-                    start = 8.dp,
-                    top = 8.dp,
-                    end = 8.dp,
-                    bottom = 84.dp
+                    top = 12.dp,
+                    bottom = 96.dp
                 )
             ) {
                 items(data) {
@@ -425,7 +606,7 @@ fun ScreenContent(
                         film = it,
                         canDelete = ownedFilmIds.contains(it.id),
                         onClick = {
-                            navController.navigate(Screen.FormUbah.withId(it.id))
+                            onEditClick(it)
                         },
                         onDeleteClick = {
                             onDeleteClick(it)
@@ -438,12 +619,109 @@ fun ScreenContent(
 }
 
 @Composable
+fun LoginRequiredScreen(
+    modifier: Modifier = Modifier,
+    onLoginClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.account_circle_24),
+                    contentDescription = stringResource(id = R.string.profil),
+                    tint = Maroon,
+                    modifier = Modifier.size(72.dp)
+                )
+                Text(
+                    text = "Login terlebih dahulu",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Masuk dengan akun Google untuk melihat, menambah, dan mengelola daftar film kamu.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Button(
+                    onClick = onLoginClick
+                ) {
+                    Text(text = "Login Google")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyFilmScreen(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Belum ada film. Tekan tombol + untuk menambahkan film pertama kamu.",
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
 fun LoadingScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        CircularProgressIndicator()
+        CircularProgressIndicator(color = Maroon)
+    }
+}
+
+@Composable
+fun ProcessingDialog() {
+    Dialog(
+        onDismissRequest = {}
+    ) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CircularProgressIndicator(color = Maroon)
+                Text(
+                    text = "Memproses data...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     }
 }
 
@@ -471,57 +749,133 @@ fun ErrorScreen(
 }
 
 @Composable
+fun DeleteIconButton(
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(40.dp)
+            .background(
+                color = Maroon.copy(alpha = 0.90f),
+                shape = CircleShape
+            )
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Delete,
+            contentDescription = "Hapus",
+            tint = Color.White,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
 fun ListItem(
     film: Film,
     canDelete: Boolean,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = DividerDefaults.color.copy(alpha = 0.35f)
+        )
     ) {
-        if (film.poster.isNotBlank()) {
-            AsyncImage(
-                model = film.poster.toUri(),
-                contentDescription = film.judul,
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = R.drawable.loading_img),
-                error = painterResource(id = R.drawable.broken_img),
+        Column(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (film.poster.isNotBlank()) {
+                    AsyncImage(
+                        model = film.poster.toUri(),
+                        contentDescription = film.judul,
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.loading_img),
+                        error = painterResource(id = R.drawable.broken_img),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(210.dp)
+                            .clip(
+                                RoundedCornerShape(
+                                    topStart = 22.dp,
+                                    topEnd = 22.dp
+                                )
+                            )
+                    )
+                }
+                if (canDelete) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(10.dp)
+                    ) {
+                        DeleteIconButton(onClick = onDeleteClick)
+                    }
+                }
+            }
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
-            )
-        }
-        Text(
-            text = film.judul,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = film.ulasan,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = film.genre,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = film.status,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        if (canDelete) {
-            Button(
-                onClick = onDeleteClick
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(text = "Hapus")
+                Text(
+                    text = film.judul,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = film.ulasan,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = film.genre,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Maroon,
+                        modifier = Modifier
+                            .background(
+                                color = Maroon.copy(alpha = 0.10f),
+                                shape = RoundedCornerShape(50)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                    Text(
+                        text = film.status,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(50)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
             }
         }
     }
@@ -538,54 +892,90 @@ fun GridItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, DividerDefaults.color)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = DividerDefaults.color.copy(alpha = 0.35f)
+        )
     ) {
         Column(
-            modifier = Modifier.padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            if (film.poster.isNotBlank()) {
-                AsyncImage(
-                    model = film.poster.toUri(),
-                    contentDescription = film.judul,
-                    contentScale = ContentScale.Crop,
-                    placeholder = painterResource(id = R.drawable.loading_img),
-                    error = painterResource(id = R.drawable.broken_img),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                )
-            }
-            Text(
-                text = film.judul,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = film.ulasan,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = film.genre,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = film.status,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (canDelete) {
-                Button(
-                    onClick = onDeleteClick
-                ) {
-                    Text(text = "Hapus")
+            Box(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (film.poster.isNotBlank()) {
+                    AsyncImage(
+                        model = film.poster.toUri(),
+                        contentDescription = film.judul,
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.loading_img),
+                        error = painterResource(id = R.drawable.broken_img),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(170.dp)
+                            .clip(
+                                RoundedCornerShape(
+                                    topStart = 20.dp,
+                                    topEnd = 20.dp
+                                )
+                            )
+                    )
                 }
+                if (canDelete) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                    ) {
+                        DeleteIconButton(onClick = onDeleteClick)
+                    }
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                Text(
+                    text = film.judul,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = film.ulasan,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = film.genre,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Maroon,
+                    modifier = Modifier
+                        .background(
+                            color = Maroon.copy(alpha = 0.10f),
+                            shape = RoundedCornerShape(50)
+                        )
+                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                )
+                Text(
+                    text = film.status,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -635,6 +1025,7 @@ fun ProfileDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
+            shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -661,7 +1052,7 @@ fun ProfileDialog(
                     Icon(
                         painter = painterResource(id = R.drawable.account_circle_24),
                         contentDescription = stringResource(id = R.string.profil),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = Maroon,
                         modifier = Modifier.size(96.dp)
                     )
                 }
@@ -682,7 +1073,7 @@ fun ProfileDialog(
                 ) {
                     Text(text = stringResource(id = R.string.logout))
                 }
-                Button(
+                TextButton(
                     onClick = onDismissRequest
                 ) {
                     Text(text = stringResource(id = R.string.tutup))

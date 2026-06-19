@@ -11,6 +11,7 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -39,6 +40,12 @@ interface FilmApiService {
 
     @POST("products/")
     suspend fun addFilm(
+        @Body body: RequestBody
+    ): String
+
+    @PUT("products/{id}")
+    suspend fun updateFilm(
+        @Path("id") id: Long,
         @Body body: RequestBody
     ): String
 
