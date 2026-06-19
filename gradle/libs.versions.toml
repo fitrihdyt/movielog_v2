@@ -16,6 +16,8 @@ room = "2.8.4"
 material3 = "1.4.0"
 datastorePreferences = "1.2.0"
 coil = "2.7.0"
+retrofit = "3.0.0"
+moshi = "1.15.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -41,6 +43,10 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+converter-scalars = { group = "com.squareup.retrofit2", name = "converter-scalars", version.ref = "retrofit" }
+moshi = { group = "com.squareup.moshi", name = "moshi", version.ref = "moshi" }
+moshi-kotlin = { group = "com.squareup.moshi", name = "moshi-kotlin", version.ref = "moshi" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
