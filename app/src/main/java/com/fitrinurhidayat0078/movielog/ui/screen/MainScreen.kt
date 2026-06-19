@@ -216,6 +216,7 @@ fun ListItem(
                 contentDescription = film.judul,
                 contentScale = ContentScale.Crop,
                 placeholder = painterResource(id = R.drawable.loading_img),
+                error = painterResource(id = R.drawable.broken_img),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
@@ -269,6 +270,7 @@ fun GridItem(
                     contentDescription = film.judul,
                     contentScale = ContentScale.Crop,
                     placeholder = painterResource(id = R.drawable.loading_img),
+                    error = painterResource(id = R.drawable.broken_img),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp)
