@@ -106,15 +106,18 @@ fun MainScreen(navController: NavHostController) {
     val user by userDataStore.userFlow.collectAsState(User())
 
     var showProfileDialog by remember { mutableStateOf(false) }
-    var bitmap: Bitmap? by remember { mutableStateOf(null) }
+    var showFilmDialog by remember { mutableStateOf(false) }
+    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     val scope = rememberCoroutineScope()
 
     val launcher = rememberLauncherForActivityResult(CropImageContract()) { result ->
-        bitmap = getCroppedImage(context.contentResolver, result)
+        val croppedImage = getCroppedImage(context.contentResolver, result)
 
-        if (bitmap != null) {
-            Log.d("IMAGE", "Gambar berhasil diambil dan di-crop.")
+        if (croppedImage != null) {
+            bitmap = croppedImage
+            showFilmDialog = true
+            Log.d("IMAGE", "Gambar berhasil dipilih dan di-crop.")
         }
     }
 
@@ -190,15 +193,8 @@ fun MainScreen(navController: NavHostController) {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    val options = CropImageContractOptions(
-                        null,
-                        CropImageOptions(
-                            imageSourceIncludeGallery = false,
-                            imageSourceIncludeCamera = true,
-                            fixAspectRatio = true
-                        )
-                    )
-                    launcher.launch(options)
+                    bitmap = null
+                    showFilmDialog = true
                 }
             ) {
                 Icon(
@@ -226,6 +222,45 @@ fun MainScreen(navController: NavHostController) {
                 scope.launch(Dispatchers.IO) {
                     signOut(context, userDataStore)
                 }
+            }
+        )
+    }
+    if (showFilmDialog) {
+        FilmDialog(
+            bitmap = bitmap,
+            onDismissRequest = {
+                showFilmDialog = false
+                bitmap = null
+            },
+            onPickImage = {
+                val options = CropImageContractOptions(
+                    null,
+                    CropImageOptions(
+                        imageSourceIncludeGallery = true,
+                        imageSourceIncludeCamera = false,
+                        fixAspectRatio = true
+                    )
+                )
+                launcher.launch(options)
+            },
+            onTakePhoto = {
+                val options = CropImageContractOptions(
+                    null,
+                    CropImageOptions(
+                        imageSourceIncludeGallery = false,
+                        imageSourceIncludeCamera = true,
+                        fixAspectRatio = true
+                    )
+                )
+                launcher.launch(options)
+            },
+            onSave = { selectedBitmap, judul, genre, ulasan, status ->
+                Log.d(
+                    "FILM-DIALOG",
+                    "Bitmap: ${selectedBitmap.width}x${selectedBitmap.height}, Judul: $judul, Genre: $genre, Ulasan: $ulasan, Status: $status"
+                )
+                showFilmDialog = false
+                bitmap = null
             }
         )
     }
