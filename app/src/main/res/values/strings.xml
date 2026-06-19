@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">MovieLog</string>
+    <string name="list_kosong">Belum ada data</string>
+    <string name="x_diklik">%1$s diklik!</string>
+    <string name="tambah_film">Tambah Film</string>
+    <string name="judul">Judul Film</string>
+    <string name="genre">Genre</string>
+    <string name="ulasan">Ulasan</string>
+    <string name="status">Status</string>
+    <string name="kembali">Kembali</string>
+    <string name="simpan">Simpan</string>
+    <string name="edit_film">Ubah Film</string>
+    <string name="invalid">Data film tidak boleh kosong.</string>
+    <string name="lainnya">Opsi lainnya</string>
+    <string name="hapus_film">Hapus Film</string>
+    <string name="pesan_hapus">Hapus film ini?</string>
+    <string name="tombol_hapus">Hapus</string>
+    <string name="tombol_batal">Batal</string>
+    <string name="list">Tampilan list</string>
+    <string name="grid">Tampilan grid</string>
+    <string name="poster_film">Poster film</string>
+    <string name="pilih_poster">Pilih Poster</string>
+    <string name="hapus_poster">Hapus Poster</string>
+    <string name="sudah_ditonton">Sudah Ditonton</string>
+    <string name="belum_ditonton">Belum Ditonton</string>
+    <string name="tema">Tema</string>
+    <string name="mode_terang">Mode Terang</string>
+    <string name="mode_gelap">Mode Gelap</string>
+</resources>
