@@ -63,14 +63,17 @@ import coil.compose.AsyncImage
 import com.fitrinurhidayat0078.movielog.BuildConfig
 import com.fitrinurhidayat0078.movielog.R
 import com.fitrinurhidayat0078.movielog.model.Film
+import com.fitrinurhidayat0078.movielog.model.User
 import com.fitrinurhidayat0078.movielog.navigation.Screen
 import com.fitrinurhidayat0078.movielog.network.ApiStatus
+import com.fitrinurhidayat0078.movielog.network.UserDataStore
 import com.fitrinurhidayat0078.movielog.ui.theme.MovieLogTheme
 import com.fitrinurhidayat0078.movielog.util.SettingsDataStore
 import com.fitrinurhidayat0078.movielog.util.ViewModelFactory
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,8 +81,12 @@ import kotlinx.coroutines.launch
 fun MainScreen(navController: NavHostController) {
     val context = LocalContext.current
     val dataStore = remember { SettingsDataStore(context) }
+    val userDataStore = remember { UserDataStore(context) }
+
     val showList by dataStore.layoutFlow.collectAsState(true)
     val darkMode by dataStore.darkModeFlow.collectAsState(false)
+    val user by userDataStore.userFlow.collectAsState(User())
+
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -95,8 +102,12 @@ fun MainScreen(navController: NavHostController) {
                 actions = {
                     IconButton(
                         onClick = {
-                            scope.launch {
-                                signIn(context)
+                            if (user.email.isEmpty()) {
+                                scope.launch(Dispatchers.IO) {
+                                    signIn(context, userDataStore)
+                                }
+                            } else {
+                                Log.d("SIGN-IN", "User: $user")
                             }
                         }
                     ) {
@@ -371,7 +382,10 @@ fun GridItem(
     }
 }
 
-private suspend fun signIn(context: Context) {
+private suspend fun signIn(
+    context: Context,
+    dataStore: UserDataStore
+) {
     val googleIdOption = GetGoogleIdOption.Builder()
         .setFilterByAuthorizedAccounts(false)
         .setServerClientId(BuildConfig.API_KEY)
@@ -384,13 +398,16 @@ private suspend fun signIn(context: Context) {
     try {
         val credentialManager = CredentialManager.create(context)
         val result = credentialManager.getCredential(context, request)
-        handleSignIn(result)
+        handleSignIn(result, dataStore)
     } catch (e: GetCredentialException) {
         Log.e("SIGN-IN", "Error: ${e.errorMessage}")
     }
 }
 
-private fun handleSignIn(result: GetCredentialResponse) {
+private suspend fun handleSignIn(
+    result: GetCredentialResponse,
+    dataStore: UserDataStore
+) {
     val credential = result.credential
 
     if (
@@ -400,9 +417,15 @@ private fun handleSignIn(result: GetCredentialResponse) {
         try {
             val googleId = GoogleIdTokenCredential.createFrom(credential.data)
 
-            Log.d("SIGN-IN", "User email: ${googleId.id}")
-            Log.d("SIGN-IN", "User name: ${googleId.displayName}")
-            Log.d("SIGN-IN", "User photo: ${googleId.profilePictureUri}")
+            val user = User(
+                name = googleId.displayName ?: "",
+                email = googleId.id,
+                photoUrl = googleId.profilePictureUri?.toString().orEmpty()
+            )
+
+            dataStore.saveData(user)
+
+            Log.d("SIGN-IN", "User: $user")
         } catch (e: GoogleIdTokenParsingException) {
             Log.e("SIGN-IN", "Error: ${e.message}")
         }
