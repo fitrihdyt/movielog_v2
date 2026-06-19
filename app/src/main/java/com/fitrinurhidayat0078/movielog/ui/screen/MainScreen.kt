@@ -1,9 +1,12 @@
 package com.fitrinurhidayat0078.movielog.ui.screen
 
+import android.content.Context
 import android.content.res.Configuration
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,9 +20,10 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -47,19 +51,26 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.GetCredentialResponse
+import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.CircularProgressIndicator
-import com.fitrinurhidayat0078.movielog.network.ApiStatus
 import coil.compose.AsyncImage
+import com.fitrinurhidayat0078.movielog.BuildConfig
 import com.fitrinurhidayat0078.movielog.R
 import com.fitrinurhidayat0078.movielog.model.Film
 import com.fitrinurhidayat0078.movielog.navigation.Screen
+import com.fitrinurhidayat0078.movielog.network.ApiStatus
 import com.fitrinurhidayat0078.movielog.ui.theme.MovieLogTheme
 import com.fitrinurhidayat0078.movielog.util.SettingsDataStore
 import com.fitrinurhidayat0078.movielog.util.ViewModelFactory
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,6 +93,19 @@ fun MainScreen(navController: NavHostController) {
                     titleContentColor = MaterialTheme.colorScheme.primary,
                 ),
                 actions = {
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                signIn(context)
+                            }
+                        }
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.account_circle_24),
+                            contentDescription = stringResource(id = R.string.profil),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     IconButton(
                         onClick = {
                             scope.launch {
@@ -344,6 +368,46 @@ fun GridItem(
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+}
+
+private suspend fun signIn(context: Context) {
+    val googleIdOption = GetGoogleIdOption.Builder()
+        .setFilterByAuthorizedAccounts(false)
+        .setServerClientId(BuildConfig.API_KEY)
+        .build()
+
+    val request = GetCredentialRequest.Builder()
+        .addCredentialOption(googleIdOption)
+        .build()
+
+    try {
+        val credentialManager = CredentialManager.create(context)
+        val result = credentialManager.getCredential(context, request)
+        handleSignIn(result)
+    } catch (e: GetCredentialException) {
+        Log.e("SIGN-IN", "Error: ${e.errorMessage}")
+    }
+}
+
+private fun handleSignIn(result: GetCredentialResponse) {
+    val credential = result.credential
+
+    if (
+        credential is CustomCredential &&
+        credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+    ) {
+        try {
+            val googleId = GoogleIdTokenCredential.createFrom(credential.data)
+
+            Log.d("SIGN-IN", "User email: ${googleId.id}")
+            Log.d("SIGN-IN", "User name: ${googleId.displayName}")
+            Log.d("SIGN-IN", "User photo: ${googleId.profilePictureUri}")
+        } catch (e: GoogleIdTokenParsingException) {
+            Log.e("SIGN-IN", "Error: ${e.message}")
+        }
+    } else {
+        Log.e("SIGN-IN", "Error: unrecognized custom credential type.")
     }
 }
 
