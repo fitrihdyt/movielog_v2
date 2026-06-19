@@ -109,6 +109,7 @@ import kotlinx.coroutines.launch
 private val Maroon = Color(0xFF7A1F2B)
 private val DarkMaroon = Color(0xFF3B0B14)
 
+@Suppress("UNUSED_PARAMETER", "UNUSED_VALUE")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(navController: NavHostController) {
