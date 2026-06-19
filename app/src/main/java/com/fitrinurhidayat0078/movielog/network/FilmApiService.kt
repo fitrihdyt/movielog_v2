@@ -6,11 +6,13 @@ import okhttp3.RequestBody
 import retrofit2.Retrofit
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 const val MOVIE_PREFIX = "[MovieLog0078]"
@@ -38,6 +40,11 @@ interface FilmApiService {
     @POST("products/")
     suspend fun addFilm(
         @Body body: RequestBody
+    ): String
+
+    @DELETE("products/{id}")
+    suspend fun deleteFilm(
+        @Path("id") id: Long
     ): String
 }
 

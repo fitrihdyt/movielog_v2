@@ -56,6 +56,8 @@ class MainViewModel(
     var status = MutableStateFlow(ApiStatus.LOADING)
         private set
 
+    val ownedFilmIds = MutableStateFlow<Set<Long>>(emptySet())
+
     fun retrieveData(userEmail: String) {
         viewModelScope.launch(Dispatchers.IO) {
             status.value = ApiStatus.LOADING
@@ -68,6 +70,15 @@ class MainViewModel(
                 val response = jsonAdapter.fromJson(json)
 
                 if (response != null) {
+                    val ownedIds = response
+                        .filter { product ->
+                            getOwnerEmail(product.description.orEmpty()) == userEmail
+                        }
+                        .map { product ->
+                            product.id
+                        }
+                        .toSet()
+                    ownedFilmIds.value = ownedIds
                     val filmList = response
                         .filter { product ->
                             val ownerEmail = getOwnerEmail(product.description.orEmpty())
@@ -81,10 +92,12 @@ class MainViewModel(
                     dao.insertAll(filmList)
                     status.value = ApiStatus.SUCCESS
                 } else {
+                    ownedFilmIds.value = emptySet()
                     status.value = ApiStatus.FAILED
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Gagal mengambil data film", e)
+                ownedFilmIds.value = emptySet()
                 status.value = ApiStatus.FAILED
             }
         }
@@ -147,6 +160,31 @@ class MainViewModel(
 
                 withContext(Dispatchers.Main) {
                     onError(e.message ?: "Gagal menyimpan film.")
+                }
+            }
+        }
+    }
+
+    fun deleteData(
+        userEmail: String,
+        filmId: Long,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                FilmApi.service.deleteFilm(filmId)
+
+                retrieveData(userEmail)
+
+                withContext(Dispatchers.Main) {
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Gagal menghapus film", e)
+
+                withContext(Dispatchers.Main) {
+                    onError(e.message ?: "Gagal menghapus film.")
                 }
             }
         }

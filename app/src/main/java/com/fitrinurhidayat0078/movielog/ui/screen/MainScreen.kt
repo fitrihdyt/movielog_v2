@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -42,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -110,9 +112,11 @@ fun MainScreen(navController: NavHostController) {
     val showList by dataStore.layoutFlow.collectAsState(true)
     val darkMode by dataStore.darkModeFlow.collectAsState(false)
     val user by userDataStore.userFlow.collectAsState(User())
+    val ownedFilmIds by viewModel.ownedFilmIds.collectAsState()
 
     var showProfileDialog by remember { mutableStateOf(false) }
     var showFilmDialog by remember { mutableStateOf(false) }
+    var filmToDelete by remember { mutableStateOf<Film?>(null) }
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     val scope = rememberCoroutineScope()
@@ -228,7 +232,11 @@ fun MainScreen(navController: NavHostController) {
             modifier = Modifier.padding(innerPadding),
             navController = navController,
             viewModel = viewModel,
-            userEmail = user.email
+            userEmail = user.email,
+            ownedFilmIds = ownedFilmIds,
+            onDeleteClick = { film ->
+                filmToDelete = film
+            }
         )
     }
     if (showProfileDialog) {
@@ -309,6 +317,39 @@ fun MainScreen(navController: NavHostController) {
             }
         )
     }
+
+    val selectedFilm = filmToDelete
+
+    if (selectedFilm != null) {
+        DeleteFilmDialog(
+            film = selectedFilm,
+            onDismissRequest = {
+                filmToDelete = null
+            },
+            onConfirmDelete = {
+                viewModel.deleteData(
+                    userEmail = user.email,
+                    filmId = selectedFilm.id,
+                    onSuccess = {
+                        Toast.makeText(
+                            context,
+                            "Film berhasil dihapus.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        filmToDelete = null
+                    },
+                    onError = { message ->
+                        Toast.makeText(
+                            context,
+                            message,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                )
+            }
+        )
+    }
 }
 
 @Composable
@@ -317,7 +358,9 @@ fun ScreenContent(
     modifier: Modifier = Modifier,
     navController: NavHostController,
     viewModel: MainViewModel,
-    userEmail: String
+    userEmail: String,
+    ownedFilmIds: Set<Long>,
+    onDeleteClick: (Film) -> Unit
 ) {
     LaunchedEffect(userEmail) {
         viewModel.retrieveData(userEmail)
@@ -351,9 +394,16 @@ fun ScreenContent(
                 contentPadding = PaddingValues(bottom = 84.dp)
             ) {
                 items(data) {
-                    ListItem(film = it) {
-                        navController.navigate(Screen.FormUbah.withId(it.id))
-                    }
+                    ListItem(
+                        film = it,
+                        canDelete = ownedFilmIds.contains(it.id),
+                        onClick = {
+                            navController.navigate(Screen.FormUbah.withId(it.id))
+                        },
+                        onDeleteClick = {
+                            onDeleteClick(it)
+                        }
+                    )
                     HorizontalDivider()
                 }
             }
@@ -371,9 +421,16 @@ fun ScreenContent(
                 )
             ) {
                 items(data) {
-                    GridItem(film = it) {
-                        navController.navigate(Screen.FormUbah.withId(it.id))
-                    }
+                    GridItem(
+                        film = it,
+                        canDelete = ownedFilmIds.contains(it.id),
+                        onClick = {
+                            navController.navigate(Screen.FormUbah.withId(it.id))
+                        },
+                        onDeleteClick = {
+                            onDeleteClick(it)
+                        }
+                    )
                 }
             }
         }
@@ -416,7 +473,9 @@ fun ErrorScreen(
 @Composable
 fun ListItem(
     film: Film,
-    onClick: () -> Unit
+    canDelete: Boolean,
+    onClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -458,13 +517,22 @@ fun ListItem(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+        if (canDelete) {
+            Button(
+                onClick = onDeleteClick
+            ) {
+                Text(text = "Hapus")
+            }
+        }
     }
 }
 
 @Composable
 fun GridItem(
     film: Film,
-    onClick: () -> Unit
+    canDelete: Boolean,
+    onClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -512,8 +580,46 @@ fun GridItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            if (canDelete) {
+                Button(
+                    onClick = onDeleteClick
+                ) {
+                    Text(text = "Hapus")
+                }
+            }
         }
     }
+}
+
+@Composable
+fun DeleteFilmDialog(
+    film: Film,
+    onDismissRequest: () -> Unit,
+    onConfirmDelete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = {
+            Text(text = "Hapus Film")
+        },
+        text = {
+            Text(text = "Yakin ingin menghapus film \"${film.judul}\"?")
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirmDelete
+            ) {
+                Text(text = "Ya, hapus")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismissRequest
+            ) {
+                Text(text = "Batal")
+            }
+        }
+    )
 }
 
 @Composable
