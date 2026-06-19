@@ -65,3 +65,8 @@ data class CategoryResponse(
     val image: String?,
     val slug: String?
 )
+
+enum class ApiStatus {
+    LOADING,
+    SUCCESS
+}

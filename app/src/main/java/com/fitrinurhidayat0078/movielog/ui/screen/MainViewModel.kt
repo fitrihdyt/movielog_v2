@@ -5,12 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fitrinurhidayat0078.movielog.database.FilmDao
 import com.fitrinurhidayat0078.movielog.model.Film
+import com.fitrinurhidayat0078.movielog.network.ApiStatus
 import com.fitrinurhidayat0078.movielog.network.FilmApi
 import com.fitrinurhidayat0078.movielog.network.ProductResponse
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -39,21 +41,25 @@ class MainViewModel(
         initialValue = emptyList()
     )
 
+    var status = MutableStateFlow(ApiStatus.LOADING)
+        private set
+
     init {
         retrieveData()
     }
 
     private fun retrieveData() {
         viewModelScope.launch(Dispatchers.IO) {
+            status.value = ApiStatus.LOADING
             try {
                 val json = FilmApi.service.getFilm()
                 val response = jsonAdapter.fromJson(json)
 
                 if (response != null) {
                     val filmList = response.map { it.toFilm() }
-
                     dao.deleteAll()
                     dao.insertAll(filmList)
+                    status.value = ApiStatus.SUCCESS
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Gagal mengambil data film", e)

@@ -49,6 +49,9 @@ import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.CircularProgressIndicator
+import com.fitrinurhidayat0078.movielog.network.ApiStatus
 import coil.compose.AsyncImage
 import com.fitrinurhidayat0078.movielog.R
 import com.fitrinurhidayat0078.movielog.model.Film
@@ -151,8 +154,11 @@ fun ScreenContent(
     val factory = ViewModelFactory(context)
     val viewModel: MainViewModel = viewModel(factory = factory)
     val data by viewModel.data.collectAsState()
+    val status by viewModel.status.collectAsState()
 
-    if (data.isEmpty()) {
+    if (status == ApiStatus.LOADING) {
+        LoadingScreen(modifier)
+    } else if (data.isEmpty()) {
         Column(
             modifier = modifier
                 .fillMaxSize()
@@ -195,6 +201,16 @@ fun ScreenContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun LoadingScreen(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
     }
 }
 
